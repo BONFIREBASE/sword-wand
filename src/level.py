@@ -77,10 +77,10 @@ def load_level(level_index):
             elif char == "F":
                 stones_list.append(FlyingStone(x + TILE_SIZE // 2, y + TILE_SIZE, hover_range=40))
             elif char == "P":
-                player = Player(x, y)
+                player = Player(x, y, char_type=getattr(state, "selected_character", "GraveRobber"))
 
     if player is None:
-        player = Player(100, 100)
+        player = Player(100, 100, char_type=getattr(state, "selected_character", "GraveRobber"))
 
     state.player_hp = state.player_max_hp
     # Reset snap flags so game.py will snap coins/enemies to actual platforms

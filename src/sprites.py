@@ -85,7 +85,7 @@ class SpriteSheet:
     def _is_empty(self, surf):
         """Check if a surface is mostly transparent."""
         mask = pygame.mask.from_surface(surf)
-        return mask.count() < 10  # fewer than 10 opaque pixels
+        return mask.count() < 1  # only skip completely empty frames
 
 
 class AnimatedSprite:
@@ -100,16 +100,18 @@ class AnimatedSprite:
         self.frame_index = 0
         self.timer = 0
         self.facing_right = True
+        self.oneshot = False
         self._set_fps()
 
     def _set_fps(self):
         self.fps = self.anims[self.state][1] if self.state in self.anims else 8
 
-    def set_state(self, state, start_frame=0):
+    def set_state(self, state, start_frame=0, oneshot=False):
         if state != self.state and state in self.anims:
             self.state = state
             self.frame_index = start_frame
             self.timer = 0
+            self.oneshot = oneshot
             self._set_fps()
 
     def update(self, dt=1):
@@ -120,7 +122,14 @@ class AnimatedSprite:
         self.timer += dt
         if self.timer >= 30 / self.fps:
             self.timer = 0
-            self.frame_index = (self.frame_index + 1) % len(frames)
+            next_idx = self.frame_index + 1
+            if self.oneshot and next_idx >= len(frames):
+                return  # freeze on last frame until state changes
+            self.frame_index = next_idx % len(frames)
+
+    def is_finished(self):
+        frames = self.anims[self.state][0].frames
+        return self.oneshot and self.frame_index >= len(frames) - 1
 
     def get_frame(self):
         frames = self.anims[self.state][0].frames
