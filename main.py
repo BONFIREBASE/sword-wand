@@ -1,379 +1,187 @@
 import pygame
 import sys
+from src.config import WIDTH, HEIGHT, LOBBY, STORY, GAME, PAUSE, GAME_OVER, VICTORY
+from src.lobby import draw_lobby, draw_options_modal
+from src.ui import draw_story, draw_pause, draw_game_over, draw_victory
+from src.game import update_game, load_game, restart_game, _draw_game_frame, spawn_damage_number, get_all_enemies
+from src import state, level
 
 pygame.init()
+pygame.mixer.init()
 
-WIDTH = 1000
-HEIGHT = 600
+RESOLUTIONS = [(800, 600), (1000, 600), (1280, 720)]
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
 pygame.display.set_caption("Sword & Wand")
+icon = pygame.image.load("assets/images/game_logo.png")
+pygame.display.set_icon(icon)
 
 clock = pygame.time.Clock()
 
-MENU = "menu"
-STORY = "story"
-GAME = "game"
-PAUSE = "pause"
-OPTIONS = "options"
-GAME_OVER = "game_over"
-
-state = MENU
-
-lives = 3
-coins = 0
-
 running = True
+lobby_buttons = {}
+lobby_options_open = False
+options_buttons = {}
+menu_buttons = {}
+
+# Settings
+bgm_volume = 0.5
+fullscreen = True
+
+# BGM
+_current_bgm = None
+
+
+def _switch_bgm(track):
+    global _current_bgm
+    if _current_bgm == track:
+        return
+    _current_bgm = track
+    pygame.mixer.music.load(track)
+    pygame.mixer.music.set_volume(bgm_volume)
+    pygame.mixer.music.play(-1)
+
+
+_switch_bgm("assets/bgm/lobby.mp3")
+_prev_state = LOBBY
 
 while running:
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
         if event.type == pygame.KEYDOWN:
-
-            if state == MENU:
-                if event.key == pygame.K_RETURN:
-                    state = STORY
-
-            elif state == STORY:
-                if event.key == pygame.K_RETURN:
-                    state = GAME
-
-            elif state == GAME:
+            if state.state == LOBBY and lobby_options_open:
                 if event.key == pygame.K_ESCAPE:
-                    state = PAUSE
+                    lobby_options_open = False
 
-            elif state == PAUSE:
+            elif state.state == LOBBY:
                 if event.key == pygame.K_ESCAPE:
-                    state = GAME
+                    running = False
+                elif event.key == pygame.K_RETURN:
+                    state.state = STORY
+                elif event.key == pygame.K_l:
+                    if load_game():
+                        pass
 
-    screen.fill((100, 180, 255))
+            elif state.state == STORY:
+                if event.key == pygame.K_RETURN:
+                    restart_game()
+                elif event.key == pygame.K_ESCAPE:
+                    state.state = LOBBY
 
-    if state == MENU:
-        draw_menu()
+            elif state.state == GAME:
+                if event.key == pygame.K_ESCAPE:
+                    state.state = PAUSE
+                elif event.key == pygame.K_SPACE:
+                    attack_rect = level.player.attack()
+                    if attack_rect:
+                        for enemy in get_all_enemies():
+                            if enemy.dying_timer > 0:
+                                continue
+                            if attack_rect.colliderect(enemy.rect):
+                                dying = enemy.take_damage(1)
+                                spawn_damage_number(enemy.rect.centerx, enemy.rect.top, 1, (255, 255, 100))
 
-    elif state == STORY:
-        draw_story()
+            elif state.state == PAUSE:
+                if event.key == pygame.K_ESCAPE:
+                    state.state = GAME
+                elif event.key == pygame.K_r:
+                    restart_game()
+                elif event.key == pygame.K_m:
+                    state.state = LOBBY
 
-    elif state == GAME:
-        update_game()
+            elif state.state == GAME_OVER:
+                if event.key == pygame.K_y:
+                    restart_game()
+                elif event.key == pygame.K_n:
+                    state.state = LOBBY
 
-    elif state == PAUSE:
-        draw_pause()
+            elif state.state == VICTORY:
+                if event.key == pygame.K_RETURN:
+                    state.state = LOBBY
 
-    elif state == GAME_OVER:
-        draw_game_over()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if state.state == LOBBY and lobby_options_open:
+                for btn_name, btn_rect in options_buttons.items():
+                    if btn_rect.collidepoint(event.pos):
+                        if btn_name == "close":
+                            lobby_options_open = False
+
+                        elif btn_name == "bgm_minus":
+                            bgm_volume = max(0.0, bgm_volume - 0.1)
+                            pygame.mixer.music.set_volume(bgm_volume)
+                        elif btn_name == "bgm_plus":
+                            bgm_volume = min(1.0, bgm_volume + 0.1)
+                            pygame.mixer.music.set_volume(bgm_volume)
+                        elif btn_name == "bgm_slider":
+                            bar_x = screen.get_width() // 2 - 120
+                            bar_w = 240
+                            rel_x = event.pos[0] - bar_x
+                            bgm_volume = max(0.0, min(1.0, rel_x / bar_w))
+                            pygame.mixer.music.set_volume(bgm_volume)
+
+                        elif btn_name == "fullscreen":
+                            fullscreen = not fullscreen
+                            if fullscreen:
+                                screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
+                            else:
+                                screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+                        elif btn_name == "exit":
+                            running = False
+
+            elif state.state == LOBBY:
+                for btn_name, btn_rect in lobby_buttons.items():
+                    if btn_rect.collidepoint(event.pos):
+                        if btn_name == "play":
+                            restart_game()
+                        elif btn_name == "options":
+                            lobby_options_open = True
+
+            elif state.state in (STORY, PAUSE, GAME_OVER, VICTORY):
+                for action, btn_rect in menu_buttons.items():
+                    if btn_rect.collidepoint(event.pos):
+                        if action == "begin":
+                            restart_game()
+                        elif action == "resume":
+                            state.state = GAME
+                        elif action == "restart":
+                            restart_game()
+                        elif action == "lobby":
+                            state.state = LOBBY
+
+    if state.state == LOBBY:
+        lobby_buttons = draw_lobby(screen)
+        if lobby_options_open:
+            options_buttons = draw_options_modal(screen, bgm_volume, fullscreen)
+    elif state.state == STORY:
+        menu_buttons = draw_story(screen)
+    elif state.state == GAME:
+        update_game(screen)
+    elif state.state == PAUSE:
+        camera_x = level.player.rect.centerx - screen.get_width() // 2
+        _draw_game_frame(screen, camera_x)
+        menu_buttons = draw_pause(screen)
+    elif state.state == GAME_OVER:
+        camera_x = level.player.rect.centerx - screen.get_width() // 2
+        _draw_game_frame(screen, camera_x)
+        menu_buttons = draw_game_over(screen)
+    elif state.state == VICTORY:
+        camera_x = level.player.rect.centerx - screen.get_width() // 2
+        _draw_game_frame(screen, camera_x)
+        menu_buttons = draw_victory(screen)
+
+    # BGM switching on state change
+    if state.state != _prev_state:
+        if state.state == GAME:
+            _switch_bgm("assets/bgm/gameplay.mp3")
+        elif state.state == LOBBY:
+            _switch_bgm("assets/bgm/lobby.mp3")
+        _prev_state = state.state
 
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(30)
 
 pygame.quit()
 sys.exit()
-
-import pygame
-
-class Player:
-
-    def __init__(self, x, y):
-
-        self.rect = pygame.Rect(x, y, 50, 60)
-
-        self.speed = 5
-        self.jump_power = -15
-
-        self.vel_y = 0
-        self.gravity = 0.8
-
-        self.on_ground = False
-
-    def update(self):
-
-        keys = pygame.key.get_pressed()
-
-        if keys[pygame.K_LEFT]:
-            self.rect.x -= self.speed
-
-        if keys[pygame.K_RIGHT]:
-            self.rect.x += self.speed
-
-        if keys[pygame.K_SPACE] and self.on_ground:
-            self.vel_y = self.jump_power
-
-        self.vel_y += self.gravity
-        self.rect.y += self.vel_y
-
-        if self.rect.bottom >= 500:
-            self.rect.bottom = 500
-            self.vel_y = 0
-            self.on_ground = True
-
-    def draw(self, screen):
-
-        pygame.draw.rect(screen, (255,255,255), self.rect)
-
-import pygame
-
-class Coin:
-
-    def __init__(self, x, y):
-
-        self.rect = pygame.Rect(x, y, 25, 25)
-
-    def draw(self, screen):
-
-        pygame.draw.circle(
-            screen,
-            (255, 215, 0),
-            self.rect.center,
-            12
-        )
-
-for coin in coins[:]:
-
-    if player.rect.colliderect(coin.rect):
-
-        coins.remove(coin)
-        score += 1
-
-#Live system
-if player.rect.y > HEIGHT:
-
-    lives -= 1
-
-    player.rect.x = 100
-    player.rect.y = 300
-
-if lives <= 0:
-    state = GAME_OVER
-#pause menu
-def draw_pause():
-
-    font = pygame.font.Font(None, 70)
-
-    resume = font.render("Resume", True, (255,255,255))
-    restart = font.render("Restart", True, (255,255,255))
-    exit_btn = font.render("Exit", True, (255,255,255))
-
-    screen.blit(resume, (350,150))
-    screen.blit(restart, (350,250))
-    screen.blit(exit_btn, (350,350))
-
-#Game over screen
-def draw_game_over():
-
-    font = pygame.font.Font(None, 90)
-
-    title = font.render("GAME OVER", True, (255,0,0))
-
-    screen.blit(title, (250,200))
-#HUC hearts coins
-def draw_ui():
-
-    font = pygame.font.Font(None, 40)
-
-    hearts = "♥" * lives
-
-    heart_text = font.render(
-        hearts,
-        True,
-        (255,0,0)
-    )
-
-    coin_text = font.render(
-        f"Coins: {score}",
-        True,
-        (255,255,0)
-    )
-
-    screen.blit(heart_text, (20,20))
-    screen.blit(coin_text, (20,60))
-#AI example
-class Enemy(pygame.sprite.Sprite):
-
-    def __init__(self, x, y):
-        super().__init__()
-
-        self.image = pygame.Surface((40, 40))
-        self.image.fill((255, 0, 0))
-
-        self.rect = self.image.get_rect(topleft=(x, y))
-
-        self.speed = 2
-        self.direction = 1
-
-        self.left_limit = x - 100
-        self.right_limit = x + 100
-
-    def update(self):
-
-        self.rect.x += self.speed * self.direction
-
-        if self.rect.x <= self.left_limit:
-            self.direction = 1
-
-        if self.rect.x >= self.right_limit:
-            self.direction = -1
-#sword attack
-if keys[pygame.K_z]:
-
-    attack_rect = pygame.Rect(
-        player.rect.right,
-        player.rect.y,
-        50,
-        player.rect.height
-    )
-
-    for enemy in enemies:
-        if attack_rect.colliderect(enemy.rect):
-            enemy.kill()
-#camera scrolling 
-camera_x = player.rect.centerx - WIDTH // 2
-
-for platform in platforms:
-    screen.blit(
-        platform.image,
-        (platform.rect.x - camera_x,
-         platform.rect.y)
-    )
-#parallax background 
-bg_x = -(camera_x * 0.3)
-
-screen.blit(background, (bg_x, 0))
-#save system 
-import json
-
-data = {
-    "level": current_level,
-    "coins": score,
-    "lives": lives
-}
-
-with open("save.json", "w") as file:
-    json.dump(data, file)
-#load
-with open("save.json", "r") as file:
-    data = json.load(file)
-
-current_level = data["level"]
-score = data["coins"]
-lives = data["lives"]
-
-#level data
-LEVEL_1 = [
-    "XXXXXXXXXXXXXXXXXXXXXXXX",
-    "X......................X",
-    "X......C...............X",
-    "X............E.........X",
-    "X....P.................X",
-    "XXXXXXXXXXXXXXXXXXXXXXXX"
-]
-#heart system
-heart_img = pygame.image.load("assets/heart.png")
-
-for i in range(lives):
-    screen.blit(
-        heart_img,
-        (20 + i * 40, 20)
-    )
-#victory system 
-if current_level == MAX_LEVEL and level_complete:
-
-    state = "victory"
-font = pygame.font.Font(None, 90)
-
-text = font.render(
-    "YOU WIN!",
-    True,
-    (255, 255, 0)
-)
-
-screen.blit(text, (250, 200))
-
-if lives <= 0:
-    state = "game_over"
-buttons = [
-    "Yes",  # Restart game
-    "No"    # Exit to menu
-]
-#game over
-def draw_game_over():
-
-    font = pygame.font.Font(None, 80)
-
-    title = font.render(
-        "GAME OVER",
-        True,
-        (255, 0, 0)
-    )
-
-    yes_btn = font.render(
-        "Yes",
-        True,
-        (255, 255, 255)
-    )
-
-    no_btn = font.render(
-        "No",
-        True,
-        (255, 255, 255)
-    )
-
-    screen.blit(title, (250, 150))
-    screen.blit(yes_btn, (320, 300))
-    screen.blit(no_btn, (500, 300))
-
-#game over backend
-if state == "game_over":
-
-    if event.type == pygame.KEYDOWN:
-
-        if event.key == pygame.K_y:
-            restart_game()
-
-        if event.key == pygame.K_n:
-            state = "menu"
-#game over click able
-yes_rect = pygame.Rect(300, 300, 120, 50)
-no_rect = pygame.Rect(500, 300, 120, 50)
-
-if event.type == pygame.MOUSEBUTTONDOWN:
-
-    if yes_rect.collidepoint(event.pos):
-        restart_game()
-
-    if no_rect.collidepoint(event.pos):
-        state = "menu"
-#lose condition
-lives <= 0
-
-#yes buttom
-if yes_button_clicked:
-    restart_game()
-
-#no buttom
-if no_button_clicked:
-    state = "menu"
-
-#patrol Ai
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-
-        self.image = pygame.Surface((40, 40))
-        self.image.fill((255, 0, 0))
-
-        self.rect = self.image.get_rect(topleft=(x, y))
-
-        self.speed = 2
-        self.direction = 1
-
-    def update(self):
-        self.rect.x += self.speed * self.direction
-
-        if self.rect.x <= 100:
-            self.direction = 1
-
-        if self.rect.x >= 300:
-            self.direction = -1
