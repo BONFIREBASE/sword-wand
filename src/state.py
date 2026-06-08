@@ -12,3 +12,7 @@ has_extended_reach = False
 has_executioner = False
 has_spiked_armor = False
 selected_character = "GraveRobber"
+equipped_skills = []
+
+def is_equipped(skill_key):
+    return skill_key in equipped_skills

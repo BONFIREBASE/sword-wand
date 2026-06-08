@@ -44,30 +44,41 @@ MAX_LEVEL = len(LEVELS)
 
 player = None
 platforms = []
+one_way_platforms = []
 coins_list = []
 enemies = pygame.sprite.Group()
 spikes_list = []
 stones_list = []
 current_level = 0
 
-
 def load_level(level_index):
-    global player, platforms, coins_list, enemies, spikes_list, stones_list, current_level
+    global player, platforms, one_way_platforms, coins_list, enemies, spikes_list, stones_list, current_level
     current_level = level_index
     level_data = LEVELS[level_index]
     platforms = []
+    one_way_platforms = []
     coins_list = []
     enemies = pygame.sprite.Group()
     spikes_list = []
     stones_list = []
     player = None
 
+    rows = len(level_data)
+    cols = len(level_data[0]) if level_data else 0
+
     for row_idx, row in enumerate(level_data):
         for col_idx, char in enumerate(row):
             x = col_idx * TILE_SIZE
             y = row_idx * TILE_SIZE
             if char == "X":
-                platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                is_top_surface = (
+                    row_idx + 1 < rows and level_data[row_idx + 1][col_idx] != "X"
+                    and row_idx > 0 and level_data[row_idx - 1][col_idx] == "X"
+                )
+                if is_top_surface:
+                    one_way_platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
+                else:
+                    platforms.append(pygame.Rect(x, y, TILE_SIZE, TILE_SIZE))
             elif char == "C":
                 coins_list.append(Coin(x + TILE_SIZE // 2, y + 10))
             elif char == "E":
@@ -83,7 +94,7 @@ def load_level(level_index):
         player = Player(100, 100, char_type=getattr(state, "selected_character", "GraveRobber"))
 
     state.player_hp = state.player_max_hp
-    # Reset snap flags so game.py will snap coins/enemies to actual platforms
+
     for coin in coins_list:
         coin.snapped = False
     for enemy in enemies:

@@ -16,68 +16,62 @@ _wc_idle_anim = None
 def _get_char_img(char_type):
     global _gr_idle_anim, _wc_idle_anim
     current_time = pygame.time.get_ticks()
-    
+
     if char_type == "GraveRobber":
         if _gr_idle_anim is None:
             path = os.path.join("assets", "characters", "2 GraveRobber", "GraveRobber_idle.png")
             if os.path.exists(path):
-                # Scale increased to 4 for larger preview
+
                 sheet = SpriteSheet(path, 48, 48, 4)
                 _gr_idle_anim = sheet.frames
         if _gr_idle_anim:
-            # 8 frames per second = 125ms per frame. 
-            # Added a +300ms offset to GraveRobber so they don't animate in perfect robotic sync!
+
             frame_idx = ((current_time + 300) // 125) % len(_gr_idle_anim)
             return _gr_idle_anim[frame_idx]
-            
+
     elif char_type == "Woodcutter":
         if _wc_idle_anim is None:
             path = os.path.join("assets", "characters", "1 Woodcutter", "Woodcutter_idle.png")
             if os.path.exists(path):
-                # Scale increased to 4 for larger preview
+
                 sheet = SpriteSheet(path, 48, 48, 4)
                 _wc_idle_anim = sheet.frames
         if _wc_idle_anim:
             frame_idx = (current_time // 125) % len(_wc_idle_anim)
             return _wc_idle_anim[frame_idx]
-            
+
     return None
 
 lobby_buttons = {}
-
 
 def draw_lobby(screen):
     t = pygame.time.get_ticks() / 1000.0
     WIDTH = screen.get_width()
     HEIGHT = screen.get_height()
-    scale = HEIGHT / 600  # reference height
+    scale = HEIGHT / 600
 
-    # Scale to fill width while preserving aspect ratio, then crop/pad to fit height
     bg_w, bg_h = _lobby_bg_raw.get_size()
     scale_w = WIDTH / bg_w
     scale_h = HEIGHT / bg_h
-    # Use scale that fills width and shows bottom (floor)
+
     scale_factor = max(scale_w, scale_h)
     new_w = int(bg_w * scale_factor)
     new_h = int(bg_h * scale_factor)
-    
+
     global _cached_lobby_bg, _cached_lobby_size
     if _cached_lobby_size != (new_w, new_h):
         _cached_lobby_bg = pygame.transform.scale(_lobby_bg_raw, (new_w, new_h)).convert()
         _cached_lobby_size = (new_w, new_h)
-        
-    # Anchor to bottom center so floor stays visible
+
     blit_x = (WIDTH - new_w) // 2
     blit_y = HEIGHT - new_h
     screen.blit(_cached_lobby_bg, (blit_x, blit_y))
 
     cx = WIDTH // 2
 
-    # Text elements
     title_font = get_font(_sekuya_font_path, int(72 * scale))
     btn_font = get_font(_sekuya_font_path, int(44 * scale))
-    
-    # Title
+
     title_text = title_font.render("SWORD & WAND", True, (40, 20, 10))
     title_h = title_text.get_height()
 
@@ -86,38 +80,34 @@ def draw_lobby(screen):
 
     start_y = HEIGHT // 2 - (title_h + gap_title_play + 3 * int(44 * scale) + 2 * btn_spacing) // 2
 
-    # Title centered
     title_rect = title_text.get_rect(center=(cx, start_y + title_h // 2))
     screen.blit(title_text, title_rect)
 
-    # Button Helper
     def draw_menu_btn(text, center_y, name):
         mouse_pos = pygame.mouse.get_pos()
-        
+
         base_surf = btn_font.render(text, True, (40, 20, 10))
         btn_rect = base_surf.get_rect(center=(cx, center_y))
-        
+
         is_hover = btn_rect.collidepoint(mouse_pos)
-        
-        # Hover animation: scale up text slightly
+
         if is_hover:
             hover_font = get_font(_sekuya_font_path, int(50 * scale))
             text_surf = hover_font.render(text, True, (80, 40, 20))
         else:
             text_surf = btn_font.render(text, True, (40, 20, 10))
-            
+
         screen.blit(text_surf, text_surf.get_rect(center=btn_rect.center))
-        
+
         lobby_buttons[name] = btn_rect
         return btn_rect.bottom + btn_spacing
 
-    # Draw Buttons
     next_y = title_rect.bottom + gap_title_play
     next_y = draw_menu_btn("PLAY", next_y + int(22 * scale), "play")
     next_y = draw_menu_btn("SHOP", next_y + int(22 * scale), "shop")
     next_y = draw_menu_btn("OPTIONS", next_y + int(22 * scale), "options")
+    next_y = draw_menu_btn("HELP", next_y + int(22 * scale), "help")
 
-    # Ground strip
     ground_h = int(40 * scale)
     pygame.draw.rect(screen, (60, 40, 20), (0, HEIGHT - ground_h, WIDTH, ground_h))
     tile = int(40 * scale)
@@ -127,20 +117,17 @@ def draw_lobby(screen):
 
     return lobby_buttons
 
-
 def draw_options_modal(screen, bgm_vol, fullscreen):
     WIDTH = screen.get_width()
     HEIGHT = screen.get_height()
     cx = WIDTH // 2
     scale = HEIGHT / 600
 
-    # Semi-transparent overlay
     overlay = pygame.Surface((WIDTH, HEIGHT))
     overlay.set_alpha(180)
     overlay.fill((0, 0, 0))
     screen.blit(overlay, (0, 0))
 
-    # Minimalist modal panel — scale with screen
     panel_w = min(int(420 * scale), int(WIDTH * 0.5))
     panel_h = int(380 * scale)
     panel_x = cx - panel_w // 2
@@ -155,7 +142,6 @@ def draw_options_modal(screen, bgm_vol, fullscreen):
 
     y = panel_y + int(24 * scale)
 
-    # Title
     title = title_font.render("OPTIONS", True, (255, 215, 0))
     screen.blit(title, (cx - title.get_width() // 2, y))
     y += int(55 * scale)
@@ -178,12 +164,10 @@ def draw_options_modal(screen, bgm_vol, fullscreen):
         pct_text = small_font.render(f"{int(val * 100)}%", True, (160, 160, 170))
         screen.blit(pct_text, (cx - pct_text.get_width() // 2, bar_y + int(16 * scale)))
 
-        # Minimal minus
         minus_text = btn_font.render("-", True, (180, 180, 180))
         minus_rect = minus_text.get_rect(center=(bar_x - int(22 * scale), knob_y))
         screen.blit(minus_text, minus_rect)
 
-        # Minimal plus
         plus_text = btn_font.render("+", True, (180, 180, 180))
         plus_rect = plus_text.get_rect(center=(bar_x + bar_w + int(22 * scale), knob_y))
         screen.blit(plus_text, plus_rect)
@@ -192,11 +176,9 @@ def draw_options_modal(screen, bgm_vol, fullscreen):
         slider_rect = pygame.Rect(bar_x - pad, bar_y - int(12 * scale), bar_w + pad * 2, bar_h + int(24 * scale))
         return minus_rect, plus_rect, slider_rect
 
-    # BGM Volume
     bgm_minus, bgm_plus, bgm_slider = draw_slider("BGM Volume", bgm_vol, y)
     y += int(100 * scale)
 
-    # Fullscreen toggle — centered single row
     fs_label = body_font.render("Fullscreen", True, (200, 200, 200))
     label_x = cx - int(60 * scale)
     screen.blit(fs_label, (label_x - fs_label.get_width() // 2, y + int(2 * scale)))
@@ -205,27 +187,118 @@ def draw_options_modal(screen, bgm_vol, fullscreen):
     fs_text = btn_font.render("ON" if fullscreen else "OFF", True, fs_color)
     fs_rect = fs_text.get_rect(center=(cx + int(60 * scale), y + int(12 * scale)))
     screen.blit(fs_text, fs_rect)
-    y += int(80 * scale)
+    y += int(110 * scale)
 
-    # Bottom buttons — simple text, no boxes
-    exit_text = btn_font.render("Exit", True, (200, 90, 90))
-    exit_rect = exit_text.get_rect(center=(cx - int(70 * scale), y))
-    screen.blit(exit_text, exit_rect)
+    mouse_pos = pygame.mouse.get_pos()
 
-    close_text = btn_font.render("Close", True, (160, 160, 170))
-    close_rect = close_text.get_rect(center=(cx + int(70 * scale), y))
-    screen.blit(close_text, close_rect)
+    exit_base_surf = btn_font.render("Exit", True, (200, 90, 90))
+    exit_rect = exit_base_surf.get_rect(center=(cx - int(80 * scale), y))
+    if exit_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(26 * scale))
+        exit_surf = hover_font.render("Exit", True, (250, 120, 120))
+    else:
+        exit_surf = exit_base_surf
+    exit_rect = exit_surf.get_rect(center=(cx - int(80 * scale), y))
+    screen.blit(exit_surf, exit_rect)
+
+    # Reset Button
+    reset_base_surf = btn_font.render("Reset Data", True, (220, 80, 80))
+    reset_rect = reset_base_surf.get_rect(center=(cx, y - int(55 * scale)))
+    if reset_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(26 * scale))
+        reset_surf = hover_font.render("Reset Data", True, (255, 100, 100))
+    else:
+        reset_surf = reset_base_surf
+    reset_rect = reset_surf.get_rect(center=(cx, y - int(55 * scale)))
+    screen.blit(reset_surf, reset_rect)
+
+    # Close Button
+    close_base_surf = btn_font.render("Close", True, (160, 160, 170))
+    close_rect = close_base_surf.get_rect(center=(cx + int(80 * scale), y))
+    if close_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(26 * scale))
+        close_surf = hover_font.render("Close", True, (220, 220, 240))
+    else:
+        close_surf = close_base_surf
+    close_rect = close_surf.get_rect(center=(cx + int(80 * scale), y))
+    screen.blit(close_surf, close_rect)
+
+    version_text = small_font.render("v1.0.0", True, (80, 80, 90))
+    screen.blit(version_text, (panel_x + panel_w - version_text.get_width() - int(12 * scale), panel_y + panel_h - version_text.get_height() - int(10 * scale)))
+
+    bsit_text = small_font.render("BSIT 1D", True, (80, 80, 90))
+    screen.blit(bsit_text, (panel_x + int(12 * scale), panel_y + panel_h - bsit_text.get_height() - int(10 * scale)))
 
     return {
         "bgm_minus": bgm_minus,
         "bgm_plus": bgm_plus,
         "bgm_slider": bgm_slider,
         "fullscreen": fs_rect,
+        "reset": reset_rect,
         "exit": exit_rect,
         "close": close_rect,
 }
 
-def draw_shop_modal(screen, state_obj, show_warning=False):
+def draw_reset_confirm_modal(screen):
+    WIDTH = screen.get_width()
+    HEIGHT = screen.get_height()
+    cx = WIDTH // 2
+    scale = HEIGHT / 600
+
+    overlay = pygame.Surface((WIDTH, HEIGHT))
+    overlay.set_alpha(220)
+    overlay.fill((10, 5, 5))
+    screen.blit(overlay, (0, 0))
+
+    panel_w = int(500 * scale)
+    panel_h = int(240 * scale)
+    panel_x = cx - panel_w // 2
+    panel_y = HEIGHT // 2 - panel_h // 2
+    pygame.draw.rect(screen, (30, 20, 20), (panel_x, panel_y, panel_w, panel_h), border_radius=12)
+    pygame.draw.rect(screen, (80, 40, 40), (panel_x, panel_y, panel_w, panel_h), 2, border_radius=12)
+
+    title_font = get_font(_sekuya_font_path, int(32 * scale))
+    body_font = get_font(_sekuya_font_path, int(20 * scale))
+    btn_font = get_font(_sekuya_font_path, int(24 * scale))
+
+    y = panel_y + int(30 * scale)
+    title = title_font.render("WARNING", True, (255, 100, 100))
+    screen.blit(title, (cx - title.get_width() // 2, y))
+    
+    y += int(50 * scale)
+    msg1 = body_font.render("This will delete all your coins,", True, (200, 200, 200))
+    screen.blit(msg1, (cx - msg1.get_width() // 2, y))
+    
+    y += int(30 * scale)
+    msg2 = body_font.render("levels, and skills. Are you sure?", True, (200, 200, 200))
+    screen.blit(msg2, (cx - msg2.get_width() // 2, y))
+
+    y += int(70 * scale)
+    mouse_pos = pygame.mouse.get_pos()
+
+    yes_base = btn_font.render("YES, WIPE DATA", True, (255, 80, 80))
+    yes_rect = yes_base.get_rect(center=(cx - int(110 * scale), y))
+    if yes_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(28 * scale))
+        yes_surf = hover_font.render("YES, WIPE DATA", True, (255, 0, 0))
+    else:
+        yes_surf = yes_base
+    yes_rect = yes_surf.get_rect(center=(cx - int(110 * scale), y))
+    screen.blit(yes_surf, yes_rect)
+
+    no_base = btn_font.render("CANCEL", True, (150, 150, 150))
+    no_rect = no_base.get_rect(center=(cx + int(110 * scale), y))
+    if no_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(28 * scale))
+        no_surf = hover_font.render("CANCEL", True, (200, 200, 200))
+    else:
+        no_surf = no_base
+    no_rect = no_surf.get_rect(center=(cx + int(110 * scale), y))
+    screen.blit(no_surf, no_rect)
+
+    return {"yes": yes_rect, "no": no_rect}
+
+def draw_shop_modal(screen, state_obj, warning_msg=""):
     WIDTH = screen.get_width()
     HEIGHT = screen.get_height()
     cx = WIDTH // 2
@@ -243,35 +316,28 @@ def draw_shop_modal(screen, state_obj, show_warning=False):
     small_font = get_font(_sekuya_font_path, int(14 * scale))
 
     n_rows = 3
-    gap_x = int(20 * scale)
-    gap_y = int(15 * scale)
-    pad = int(24 * scale)
-    item_h = int(80 * scale)
+    gap_x = int(24 * scale)
+    gap_y = int(16 * scale)
+    pad = int(30 * scale)
+    item_h = int(120 * scale)
     header_h = int(40 * scale) + int(40 * scale) + int(40 * scale)
     grid_h = n_rows * (item_h + gap_y) - gap_y
     footer_h = int(40 * scale) + int(40 * scale)
     panel_h = header_h + grid_h + footer_h + pad * 2
-    panel_w = min(int(820 * scale), int(WIDTH * 0.92))
+    panel_w = min(int(960 * scale), int(WIDTH * 0.95))
     panel_x = cx - panel_w // 2
-    panel_y = max(int(40 * scale), HEIGHT // 2 - panel_h // 2)
+    panel_y = max(int(20 * scale), HEIGHT // 2 - panel_h // 2)
 
-    shadow_surf = pygame.Surface((panel_w + 8, panel_h + 8), pygame.SRCALPHA)
-    shadow_surf.fill((0, 0, 0, 60))
-    screen.blit(shadow_surf, (panel_x - 4, panel_y + 4))
-    pygame.draw.rect(screen, (30, 26, 42), (panel_x, panel_y, panel_w, panel_h), border_radius=14)
-    pygame.draw.rect(screen, (70, 60, 90), (panel_x, panel_y, panel_w, panel_h), 2, border_radius=14)
-    inner = pygame.Rect(panel_x + 3, panel_y + 3, panel_w - 6, panel_h - 6)
-    pygame.draw.rect(screen, (38, 34, 52), inner, border_radius=12)
+    pygame.draw.rect(screen, (18, 18, 20), (panel_x, panel_y, panel_w, panel_h), border_radius=10)
+    pygame.draw.rect(screen, (45, 45, 50), (panel_x, panel_y, panel_w, panel_h), 1, border_radius=10)
 
     y = panel_y + pad
 
-    title = title_font.render("SHOP", True, (255, 215, 0))
+    title = title_font.render("SHOP", True, (240, 240, 240))
     screen.blit(title, (cx - title.get_width() // 2, y))
     y += int(40 * scale)
 
-    coin_text = body_font.render(f"Coins: {state_obj.score}", True, (240, 200, 80))
-    coin_shadow = body_font.render(f"Coins: {state_obj.score}", True, (180, 140, 40))
-    screen.blit(coin_shadow, (cx - coin_text.get_width() // 2 + 1, y + 1))
+    coin_text = body_font.render(f"Coins: {state_obj.score}", True, (255, 200, 50))
     screen.blit(coin_text, (cx - coin_text.get_width() // 2, y))
     y += int(40 * scale)
 
@@ -287,81 +353,92 @@ def draw_shop_modal(screen, state_obj, show_warning=False):
         rect = pygame.Rect(ix, iy, item_w, item_h)
         is_hover = rect.collidepoint(mouse_pos)
 
-        bg_color = (48, 42, 62) if is_hover else (35, 32, 45)
-        bd_color = (90, 80, 110) if is_hover else (65, 60, 85)
-        pygame.draw.rect(screen, bg_color, rect, border_radius=10)
-        pygame.draw.rect(screen, bd_color, rect, 2 if is_hover else 1, border_radius=10)
+        bg_color = (28, 28, 32) if is_hover else (22, 22, 24)
+        bd_color = (70, 70, 80) if is_hover else (40, 40, 45)
+        pygame.draw.rect(screen, bg_color, rect, border_radius=8)
+        pygame.draw.rect(screen, bd_color, rect, 1, border_radius=8)
 
-        icon_cx = ix + int(30 * scale)
+        icon_cx = ix + int(36 * scale)
         icon_cy = iy + item_h // 2
         draw_icon_fn(icon_cx, icon_cy)
 
-        item_label = body_font.render(title_str, True, (220, 220, 230) if is_hover else (200, 200, 210))
-        screen.blit(item_label, (ix + int(60 * scale), iy + int(14 * scale)))
-        desc_surf = small_font.render(desc_str, True, (160, 160, 170))
-        screen.blit(desc_surf, (ix + int(60 * scale), iy + int(46 * scale)))
+        text_x = ix + int(70 * scale)
+
+        title_surf = body_font.render(title_str, True, (240, 240, 240))
+        screen.blit(title_surf, (text_x, iy + int(14 * scale)))
+
+        desc_surf = small_font.render(desc_str, True, (150, 150, 150))
+        screen.blit(desc_surf, (text_x, iy + int(44 * scale)))
+
+        btn_w = int(80 * scale)
+        btn_h = int(32 * scale)
+        btn_x = ix + item_w - int(14 * scale) - btn_w
+        btn_y = iy + item_h - int(12 * scale) - btn_h
+        btn_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
 
         if is_owned:
-            status = btn_font.render("OWNED", True, (100, 255, 100))
-            sx = ix + item_w - int(10 * scale) - status.get_width()
-            sy = icon_cy - status.get_height() // 2
-            screen.blit(status, (sx, sy))
-        else:
-            buy_text = btn_font.render(f"{price}c", True, (255, 255, 255))
-            buy_w = int(70 * scale)
-            buy_h = int(38 * scale)
-            buy_rect = pygame.Rect(ix + item_w - int(10 * scale) - buy_w, icon_cy - buy_h // 2, buy_w, buy_h)
-            can_afford = state_obj.score >= price
-            buy_hover = buy_rect.collidepoint(mouse_pos)
-            if can_afford:
-                color = (70, 180, 90) if buy_hover else (60, 160, 80)
+            skill_key = key.replace("buy_", "")
+            is_equipped = state_obj.is_equipped(skill_key)
+            hover = btn_rect.collidepoint(mouse_pos)
+
+            if is_equipped:
+                btn_bg = (180, 80, 80) if hover else (120, 50, 50)
+                txt = "UNEQUIP"
             else:
-                color = (140, 70, 70) if buy_hover else (120, 60, 60)
-            pygame.draw.rect(screen, color, buy_rect, border_radius=10)
+                btn_bg = (60, 180, 100) if hover else (40, 150, 70)
+                txt = "EQUIP"
+
+            pygame.draw.rect(screen, btn_bg, btn_rect, border_radius=6)
+            status = small_font.render(txt, True, (255, 255, 255))
+            screen.blit(status, (btn_rect.centerx - status.get_width() // 2, btn_rect.centery - status.get_height() // 2))
+            shop_rects[key] = btn_rect
+        else:
+            can_afford = state_obj.score >= price
+            buy_hover = btn_rect.collidepoint(mouse_pos)
+
+            btn_bg = (40, 150, 70) if can_afford else (120, 50, 50)
             if buy_hover and can_afford:
-                pygame.draw.rect(screen, (100, 220, 120), buy_rect, 2, border_radius=10)
-            screen.blit(buy_text, (buy_rect.centerx - buy_text.get_width() // 2, buy_rect.centery - buy_text.get_height() // 2))
-            shop_rects[key] = buy_rect
+                btn_bg = (50, 180, 80)
+
+            pygame.draw.rect(screen, btn_bg, btn_rect, border_radius=6)
+            buy_text = btn_font.render(f"{price}c", True, (255, 255, 255))
+            screen.blit(buy_text, (btn_rect.centerx - buy_text.get_width() // 2, btn_rect.centery - buy_text.get_height() // 2))
+            shop_rects[key] = btn_rect
 
     def draw_dash(cx, cy):
-        s = int(16 * scale)
+        s = int(14 * scale)
         for offset in [0, s]:
             pygame.draw.polygon(screen, (220, 220, 220), [
-                (cx - s + offset, cy),
-                (cx - s//2 + offset, cy - s//2),
-                (cx - s//4 + offset, cy),
-                (cx - s//2 + offset, cy + s//2)
+                (cx - s + offset, cy), (cx - s//2 + offset, cy - s//2),
+                (cx - s//4 + offset, cy), (cx - s//2 + offset, cy + s//2)
             ])
 
     def draw_regen(cx, cy):
-        pw = int(6 * scale)
-        pl = int(20 * scale)
+        pw, pl = int(4 * scale), int(16 * scale)
         pygame.draw.rect(screen, (220, 80, 80), (cx - pw//2, cy - pl//2, pw, pl))
         pygame.draw.rect(screen, (220, 80, 80), (cx - pl//2, cy - pw//2, pl, pw))
 
     def draw_cd(cx, cy):
-        hw, hh = int(14 * scale), int(20 * scale)
+        hw, hh = int(12 * scale), int(16 * scale)
         pygame.draw.polygon(screen, (100, 200, 255), [
             (cx - hw//2, cy - hh//2), (cx + hw//2, cy - hh//2), (cx, cy),
             (cx + hw//2, cy + hh//2), (cx - hw//2, cy + hh//2), (cx, cy)
         ], max(2, int(2 * scale)))
 
     def draw_reach(cx, cy):
-        pygame.draw.line(screen, (255, 100, 100), (cx - 15*scale, cy), (cx + 15*scale, cy), int(4*scale))
-        pygame.draw.polygon(screen, (255, 100, 100), [(cx+15*scale, cy-6*scale), (cx+22*scale, cy), (cx+15*scale, cy+6*scale)])
+        pygame.draw.line(screen, (255, 100, 100), (cx - 15*scale, cy), (cx + 15*scale, cy), int(3*scale))
+        pygame.draw.polygon(screen, (255, 100, 100), [(cx+15*scale, cy-5*scale), (cx+20*scale, cy), (cx+15*scale, cy+5*scale)])
 
     def draw_crit(cx, cy):
-        s = int(12 * scale)
+        s = int(10 * scale)
         pygame.draw.polygon(screen, (255, 50, 50), [(cx, cy-s), (cx+s, cy), (cx, cy+s), (cx-s, cy)])
         pygame.draw.polygon(screen, (255, 200, 50), [(cx, cy-s//2), (cx+s//2, cy), (cx, cy+s//2), (cx-s//2, cy)])
 
     def draw_spikes(cx, cy):
-        pygame.draw.circle(screen, (150, 150, 180), (cx, cy), int(10*scale))
+        pygame.draw.circle(screen, (150, 150, 180), (cx, cy), int(8*scale), int(2*scale))
         for angle in range(0, 360, 45):
             rad = math.radians(angle)
-            x = cx + math.cos(rad) * 14 * scale
-            y = cy + math.sin(rad) * 14 * scale
-            pygame.draw.circle(screen, (200, 100, 255), (x, y), int(3*scale))
+            pygame.draw.circle(screen, (200, 100, 255), (cx + math.cos(rad) * 12 * scale, cy + math.sin(rad) * 12 * scale), int(2*scale))
 
     draw_item(0, 0, "Double Dash", "Air dash after jumping", 50, state_obj.has_double_dash, "buy_double_dash", draw_dash)
     draw_item(0, 1, "Regen Health", "Regen health while idle", 25, state_obj.has_regen, "buy_regen", draw_regen)
@@ -372,23 +449,24 @@ def draw_shop_modal(screen, state_obj, show_warning=False):
 
     y += 3 * (item_h + gap_y) + int(10 * scale)
 
-    if show_warning:
-        msg = body_font.render("Not enough coins!", True, (220, 80, 80))
+    if warning_msg:
+        msg = body_font.render(warning_msg, True, (220, 80, 80))
         screen.blit(msg, (cx - msg.get_width() // 2, y))
 
     y += int(40 * scale)
 
     close_text = btn_font.render("Close", True, (160, 160, 170))
-    close_hover = pygame.Rect(0, 0, close_text.get_width() + 20, close_text.get_height() + 10)
     close_rect = close_text.get_rect(center=(cx, y))
-    close_hover.center = close_rect.center
-    if close_hover.collidepoint(mouse_pos):
-        close_text = btn_font.render("Close", True, (200, 200, 210))
+
+    close_bg = pygame.Rect(close_rect.x - int(20 * scale), close_rect.y - int(10 * scale), close_rect.width + int(40 * scale), close_rect.height + int(20 * scale))
+    if close_bg.collidepoint(mouse_pos):
+        pygame.draw.rect(screen, (35, 35, 40), close_bg, border_radius=6)
+        close_text = btn_font.render("Close", True, (240, 240, 240))
+
     screen.blit(close_text, close_rect)
-    shop_rects["close"] = close_rect
+    shop_rects["close"] = close_bg
 
     return shop_rects
-
 
 def draw_char_select_modal(screen):
     WIDTH = screen.get_width()
@@ -461,3 +539,182 @@ def draw_char_select_modal(screen):
         "Woodcutter": wc_rect,
         "close": close_rect
     }
+
+def draw_help_modal(screen):
+    WIDTH = screen.get_width()
+    HEIGHT = screen.get_height()
+    cx = WIDTH // 2
+    scale = min(WIDTH / 1280, HEIGHT / 720)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT))
+    overlay.set_alpha(200)
+    overlay.fill((0, 0, 0))
+    screen.blit(overlay, (0, 0))
+
+    title_font = get_font(_sekuya_font_path, int(32 * scale))
+    header_font = get_font(_sekuya_font_path, int(17 * scale))
+    body_font = get_font(_sekuya_font_path, int(14 * scale))
+    btn_font = get_font(_sekuya_font_path, int(20 * scale))
+
+    pad = int(26 * scale)
+    col_gap = int(20 * scale)
+    row_gap = int(5 * scale)
+    section_gap = int(10 * scale)
+    key_col_w = int(80 * scale)
+
+    panel_w = min(int(860 * scale), int(WIDTH * 0.92))
+    half_w = (panel_w - pad * 2 - col_gap) // 2
+
+    line_color = (60, 50, 90)
+
+    def measure_section_header():
+        return header_font.size("X")[1] + int(3 * scale) + section_gap
+
+    def measure_row():
+        return body_font.size("X")[1] + row_gap
+
+    def measure_text(text):
+        return body_font.size(text)[1] + row_gap
+
+    title_h = title_font.size("X")[1]
+    title_block = title_h + int(16 * scale)
+
+    left_items = [
+        ("header", "MOVEMENT"),
+        ("row", "A / D", "Move left / right"),
+        ("row", "W / Up", "Jump"),
+        ("gap",),
+        ("header", "COMBAT"),
+        ("row", "SPACE", "Basic attack"),
+        ("row", "E", "Skill 1  (Lv 2+)"),
+        ("row", "Q", "Skill 2  (Lv 4+)"),
+        ("gap",),
+        ("header", "COMBO"),
+        ("text", "SPACE \u2192 E \u2192 Q \u2192 SPACE (GraveRobber)"),
+        ("text", "W \u2192 E \u2192 Q \u2192 SPACE (Woodcutter)"),
+        ("text", "5x damage + HP restore"),
+    ]
+
+    right_items = [
+        ("header", "GENERAL"),
+        ("row", "ESC", "Pause game"),
+        ("row", "R", "Restart (paused)"),
+        ("row", "M", "Return to lobby"),
+        ("gap",),
+        ("header", "OBJECTIVES"),
+        ("bullet", "Defeat all enemies to advance"),
+        ("bullet", "Collect coins from kills"),
+        ("bullet", "Spend coins in the Shop"),
+        ("bullet", "Gain XP to level up"),
+        ("bullet", "Level up raises max HP"),
+        ("gap",),
+        ("header", "SKILLS (SHOP)"),
+        ("bullet", "Double Dash \u2013 air dash in-flight"),
+        ("bullet", "Regen \u2013 recover HP when idle"),
+        ("bullet", "CD Reduction \u2013 faster skills"),
+        ("bullet", "Titan\u2019s Grip \u2013 longer reach"),
+        ("bullet", "Executioner \u2013 20% crit chance"),
+        ("bullet", "Spiked Armor \u2013 reflect damage"),
+    ]
+
+    def measure_items(items):
+        h = 0
+        for item in items:
+            if item[0] == "header":
+                h += header_font.size("X")[1] + int(3 * scale) + section_gap
+            elif item[0] in ("row", "text", "bullet"):
+                h += body_font.size("X")[1] + row_gap
+            elif item[0] == "gap":
+                h += section_gap
+        return h
+
+    left_h = measure_items(left_items)
+    right_h = measure_items(right_items)
+    content_h = max(left_h, right_h)
+
+    close_h = btn_font.size("X")[1] + int(24 * scale)
+    divider_h = int(10 * scale)
+
+    panel_h = pad + title_block + content_h + divider_h + close_h + pad
+    max_panel_h = HEIGHT - int(20 * scale)
+    panel_h = min(panel_h, max_panel_h)
+
+    panel_x = cx - panel_w // 2
+    panel_y = HEIGHT // 2 - panel_h // 2
+
+    pygame.draw.rect(screen, (18, 16, 28), (panel_x, panel_y, panel_w, panel_h), border_radius=12)
+    pygame.draw.rect(screen, (80, 60, 120), (panel_x, panel_y, panel_w, panel_h), 2, border_radius=12)
+
+    y = panel_y + pad
+
+    title_surf = title_font.render("HOW TO PLAY", True, (255, 215, 0))
+    screen.blit(title_surf, (cx - title_surf.get_width() // 2, y))
+    y += title_h + int(16 * scale)
+
+    col_x = panel_x + pad
+    col2_x = col_x + half_w + col_gap
+
+    close_bottom = panel_y + panel_h - pad
+    close_top = close_bottom - close_h
+    content_area_h = close_top - y - divider_h
+
+    clip_rect = pygame.Rect(panel_x + 2, y, panel_w - 4, content_area_h)
+    old_clip = screen.get_clip()
+    screen.set_clip(clip_rect)
+
+    def draw_section_header(text, x, y_pos):
+        surf = header_font.render(text, True, (200, 160, 255))
+        screen.blit(surf, (x, y_pos))
+        line_y = y_pos + surf.get_height() + int(2 * scale)
+        pygame.draw.line(screen, line_color, (x, line_y), (x + half_w, line_y), 1)
+        return y_pos + surf.get_height() + int(3 * scale) + section_gap
+
+    def draw_row(key_str, action_str, x, y_pos):
+        key_surf = body_font.render(key_str, True, (255, 220, 80))
+        act_surf = body_font.render(action_str, True, (190, 190, 190))
+        screen.blit(key_surf, (x, y_pos))
+        screen.blit(act_surf, (x + key_col_w, y_pos))
+        return y_pos + key_surf.get_height() + row_gap
+
+    def draw_text(text, x, y_pos, color=(190, 190, 190)):
+        surf = body_font.render(text, True, color)
+        screen.blit(surf, (x, y_pos))
+        return y_pos + surf.get_height() + row_gap
+
+    def render_items(items, x, start_y):
+        cy2 = start_y
+        for item in items:
+            if item[0] == "header":
+                cy2 = draw_section_header(item[1], x, cy2)
+            elif item[0] == "row":
+                cy2 = draw_row(item[1], item[2], x, cy2)
+            elif item[0] == "text":
+                color = (255, 120, 200) if "\u2192" in item[1] else (190, 190, 190)
+                cy2 = draw_text(item[1], x, cy2, color)
+            elif item[0] == "bullet":
+                cy2 = draw_text(f"\u2022  {item[1]}", x, cy2)
+            elif item[0] == "gap":
+                cy2 += section_gap
+
+    render_items(left_items, col_x, y)
+    render_items(right_items, col2_x, y)
+
+    screen.set_clip(old_clip)
+
+    pygame.draw.line(screen, (60, 50, 90),
+                     (panel_x + pad, close_top),
+                     (panel_x + panel_w - pad, close_top), 1)
+
+    mouse_pos = pygame.mouse.get_pos()
+    close_cy = close_top + close_h // 2
+    close_base = btn_font.render("Close", True, (160, 160, 170))
+    close_rect = close_base.get_rect(center=(cx, close_cy))
+    if close_rect.collidepoint(mouse_pos):
+        hover_font = get_font(_sekuya_font_path, int(24 * scale))
+        close_surf = hover_font.render("Close", True, (220, 220, 240))
+    else:
+        close_surf = close_base
+    close_rect = close_surf.get_rect(center=(cx, close_cy))
+    screen.blit(close_surf, close_rect)
+
+    return {"close": close_rect}

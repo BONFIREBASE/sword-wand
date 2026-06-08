@@ -1,7 +1,6 @@
 import os
 import pygame
 
-
 class SequenceSheet:
     """Loads individual PNG frames from a folder (sorted by filename)."""
 
@@ -27,7 +26,6 @@ class SequenceSheet:
             frames.append(img)
         return frames
 
-
 class SpriteSheet:
     """Loads a sprite sheet and slices it into frames."""
 
@@ -47,11 +45,11 @@ class SpriteSheet:
             for col in range(cols):
                 x = col * self.frame_w
                 y = row * self.frame_h
-                # Skip if would go past sheet edge
+
                 if x + self.frame_w > sheet_w or y + self.frame_h > sheet_h:
                     continue
                 frame = self.sheet.subsurface((x, y, self.frame_w, self.frame_h))
-                # Skip mostly-transparent frames (padding/empty)
+
                 if self._is_empty(frame):
                     continue
                 if self.scale != 1:
@@ -59,7 +57,7 @@ class SpriteSheet:
                     new_h = int(self.frame_h * self.scale)
                     frame = pygame.transform.scale(frame, (new_w, new_h))
                 frames.append(frame)
-        # Fallback: if all frames were empty, use whole sheet as single frame
+
         if not frames:
             frame = self.sheet.copy()
             if self.scale != 1:
@@ -85,8 +83,7 @@ class SpriteSheet:
     def _is_empty(self, surf):
         """Check if a surface is mostly transparent."""
         mask = pygame.mask.from_surface(surf)
-        return mask.count() < 1  # only skip completely empty frames
-
+        return mask.count() < 1
 
 class AnimatedSprite:
     """Manages animation states and frame cycling."""
@@ -124,7 +121,7 @@ class AnimatedSprite:
             self.timer = 0
             next_idx = self.frame_index + 1
             if self.oneshot and next_idx >= len(frames):
-                return  # freeze on last frame until state changes
+                return
             self.frame_index = next_idx % len(frames)
 
     def is_finished(self):
@@ -141,7 +138,7 @@ class AnimatedSprite:
     def draw(self, screen, x, y, alpha=255):
         frame = self.get_frame()
         if alpha < 255:
-            # Need to create a copy to apply alpha if we don't want to modify the cached frame
+
             temp_frame = frame.copy()
             temp_frame.set_alpha(alpha)
             frame = temp_frame
